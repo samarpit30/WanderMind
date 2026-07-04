@@ -5,7 +5,7 @@ import { useAppStore } from "../../lib/store/useAppStore";
 import { ChatMessage } from "../../lib/types";
 import AgentsAtWorkStrip from "./AgentsAtWorkStrip";
 
-function cleanMarkdown(text: string): string {
+function cleanMarkdown(text?: string): string {
   if (!text) return "";
   return text
     .replace(/\*\*(.*?)\*\*/g, "$1")
