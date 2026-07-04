@@ -129,7 +129,7 @@ export default function ChatPanel() {
   };
 
   return (
-    <div className="flex flex-col border border-zinc-900 bg-zinc-950 rounded-2xl overflow-hidden h-[380px] shadow-lg">
+    <div className="flex flex-col border border-zinc-900 bg-zinc-950 rounded-2xl overflow-hidden h-[450px] shadow-lg">
       <div className="px-4 py-3 bg-zinc-900/40 border-b border-zinc-900 flex items-center justify-between">
         <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Scout Agent Chat</span>
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
