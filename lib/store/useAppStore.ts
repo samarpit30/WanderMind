@@ -26,6 +26,7 @@ export interface AppState {
   chatHistory: ChatMessage[];
   uiStatus: "idle" | "loading" | "error";
   statusMessage?: string;
+  isOnboarded: boolean;
 
   // Actions
   setPersona: (persona: UserPersona) => void;
@@ -47,6 +48,7 @@ export interface AppState {
   resolveTrafficAlert: (legIndex: number) => void;
   pushChatMessage: (message: ChatMessage) => void;
   setUiStatus: (status: "idle" | "loading" | "error", message?: string) => void;
+  setIsOnboarded: (val: boolean) => void;
 }
 
 const defaultPersona: UserPersona = {
@@ -69,6 +71,7 @@ export const useAppStore = create<AppState>()(
       chatHistory: [],
       uiStatus: "idle",
       statusMessage: "",
+      isOnboarded: false,
 
       setPersona: (persona) => set({ persona }),
       setSearchMode: (searchMode) => set({ searchMode }),
@@ -102,6 +105,7 @@ export const useAppStore = create<AppState>()(
         })),
       setUiStatus: (uiStatus, statusMessage) =>
         set({ uiStatus, statusMessage }),
+      setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
     }),
     {
       name: "wandermind-app-store",
