@@ -16,13 +16,24 @@ export default function PathSearchBox() {
   const originInputRef = useRef<HTMLInputElement>(null);
   const destInputRef = useRef<HTMLInputElement>(null);
   const placesLib = useMapsLibrary("places");
-  const { pathQuery, setPathQuery } = useAppStore();
+  const { pathQuery, setPathQuery, dispatchSearch } = useAppStore();
 
   const [originVal, setOriginVal] = useState(pathQuery?.origin?.formattedAddress || "");
   const [destVal, setDestVal] = useState(pathQuery?.destination?.formattedAddress || "");
 
   const [originData, setOriginData] = useState<LocationData | null>(pathQuery?.origin || null);
   const [destData, setDestData] = useState<LocationData | null>(pathQuery?.destination || null);
+
+  const originDataRef = useRef<LocationData | null>(null);
+  const destDataRef = useRef<LocationData | null>(null);
+
+  useEffect(() => {
+    originDataRef.current = originData;
+  }, [originData]);
+
+  useEffect(() => {
+    destDataRef.current = destData;
+  }, [destData]);
 
   // Sync with global store changes
   useEffect(() => {
@@ -60,6 +71,7 @@ export default function PathSearchBox() {
           };
           setOriginData(data);
           setOriginVal(data.formattedAddress);
+          if (destDataRef.current) dispatchSearch();
         }
       });
     }
@@ -79,6 +91,7 @@ export default function PathSearchBox() {
           };
           setDestData(data);
           setDestVal(data.formattedAddress);
+          if (originDataRef.current) dispatchSearch();
         }
       });
     }
@@ -87,7 +100,7 @@ export default function PathSearchBox() {
       if (originAutocomplete) google.maps.event.clearInstanceListeners(originAutocomplete);
       if (destAutocomplete) google.maps.event.clearInstanceListeners(destAutocomplete);
     };
-  }, [placesLib]);
+  }, [placesLib, dispatchSearch]);
 
   // Sync to store when both origin and destination are selected
   useEffect(() => {
@@ -123,7 +136,17 @@ export default function PathSearchBox() {
           type="text"
           placeholder="Starting point (origin)..."
           value={originVal}
-          onChange={(e) => setOriginVal(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setOriginVal(val);
+            setOriginData(val ? { lat: 0, lng: 0, formattedAddress: val } : null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && originVal.trim() && destVal.trim()) {
+              e.preventDefault();
+              dispatchSearch();
+            }
+          }}
           className="w-full pl-10 pr-10 py-3.5 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all shadow-inner"
         />
         {originVal && (
@@ -147,7 +170,17 @@ export default function PathSearchBox() {
           type="text"
           placeholder="End point (destination)..."
           value={destVal}
-          onChange={(e) => setDestVal(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setDestVal(val);
+            setDestData(val ? { lat: 0, lng: 0, formattedAddress: val } : null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && originVal.trim() && destVal.trim()) {
+              e.preventDefault();
+              dispatchSearch();
+            }
+          }}
           className="w-full pl-10 pr-10 py-3.5 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all shadow-inner"
         />
         {destVal && (

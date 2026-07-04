@@ -27,8 +27,9 @@ export interface AppState {
   uiStatus: "idle" | "loading" | "error";
   statusMessage?: string;
   isOnboarded: boolean;
+  triggerSearchFlag: number;
 
-  // Actions
+  dispatchSearch: () => void;
   setPersona: (persona: UserPersona) => void;
   setSearchMode: (mode: SearchMode) => void;
   setLocationQuery: (
@@ -73,7 +74,9 @@ export const useAppStore = create<AppState>()(
       uiStatus: "idle",
       statusMessage: "",
       isOnboarded: false,
+      triggerSearchFlag: 0,
 
+      dispatchSearch: () => set((state) => ({ triggerSearchFlag: state.triggerSearchFlag + 1 })),
       setPersona: (persona) => set({ persona }),
       setSearchMode: (searchMode) => set({ searchMode }),
       setLocationQuery: (locationQuery) => set({ locationQuery }),

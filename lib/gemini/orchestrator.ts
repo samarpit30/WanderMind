@@ -3,6 +3,7 @@ import { gemini } from "./client";
 import { orchestratorSystemPrompt } from "./systemPrompt";
 import { allTools } from "./functionDeclarations";
 import { geocodeLocation } from "../tools/geocodeLocation";
+import { GeocodeResult } from "../maps/googleMapsClient";
 import { searchPlaces } from "../tools/searchPlaces";
 import { getPlaceDetails } from "../tools/getPlaceDetails";
 import { scorePersonaMatch } from "../tools/scorePersonaMatch";
@@ -36,6 +37,11 @@ export interface AgentResponse {
   story?: string;
   clarifyingQuestion?: string;
   toolTrace?: string[];
+  geocodedLocation?: GeocodeResult;
+  geocodedPath?: {
+    origin: GeocodeResult;
+    destination: GeocodeResult;
+  };
 }
 
 async function executeLocalTool(name: string, args: any): Promise<any> {
@@ -135,6 +141,11 @@ export async function runOrchestrator(request: AgentRequest): Promise<AgentRespo
   let itinerary: Itinerary | undefined;
   let story: string | undefined;
   let finalResponseText = "";
+  let geocodedLocation: GeocodeResult | undefined;
+  let geocodedPath: {
+    origin: GeocodeResult;
+    destination: GeocodeResult;
+  } | undefined;
 
   const toolsConfig = [{ functionDeclarations: allTools }];
 
@@ -172,6 +183,32 @@ export async function runOrchestrator(request: AgentRequest): Promise<AgentRespo
             // Intercept and collect structured data returned by tools
             if (call.name === "search_places" && Array.isArray(result)) {
               recommendations = [...recommendations, ...result];
+            } else if (call.name === "geocode_location" && result && typeof result === "object") {
+              const queryStr = (call.args.query || "").toLowerCase();
+              const originStr = (context.pathQuery?.origin?.formattedAddress || "").toLowerCase();
+              const destStr = (context.pathQuery?.destination?.formattedAddress || "").toLowerCase();
+              
+              if (searchMode === "location") {
+                geocodedLocation = result as GeocodeResult;
+              } else if (searchMode === "path") {
+                if (!geocodedPath) {
+                  geocodedPath = {
+                    origin: context.pathQuery?.origin || { lat: 0, lng: 0, formattedAddress: "" },
+                    destination: context.pathQuery?.destination || { lat: 0, lng: 0, formattedAddress: "" }
+                  };
+                }
+                if (originStr && queryStr.includes(originStr.substring(0, 5))) {
+                  geocodedPath.origin = result as GeocodeResult;
+                } else if (destStr && queryStr.includes(destStr.substring(0, 5))) {
+                  geocodedPath.destination = result as GeocodeResult;
+                } else {
+                  if (geocodedPath.origin.lat === 0) {
+                    geocodedPath.origin = result as GeocodeResult;
+                  } else {
+                    geocodedPath.destination = result as GeocodeResult;
+                  }
+                }
+              }
             } else if (call.name === "score_persona_match" && result && typeof result === "object") {
               personaScores.push(result as PersonaScore);
             } else if (
@@ -230,5 +267,7 @@ export async function runOrchestrator(request: AgentRequest): Promise<AgentRespo
     itinerary,
     story,
     toolTrace,
+    geocodedLocation,
+    geocodedPath,
   };
 }

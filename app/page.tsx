@@ -37,9 +37,13 @@ export default function Home() {
     setRecommendations,
     setPersonaScores,
     setUiStatus,
+    uiStatus,
     activePlan,
     removeFromPlan,
     setLocationQuery,
+    setPathQuery,
+    triggerSearchFlag,
+    dispatchSearch,
   } = useAppStore();
 
   const handleEditPersona = () => {
@@ -88,6 +92,12 @@ export default function Home() {
       if (data.personaScores) {
         setPersonaScores(data.personaScores);
       }
+      if (data.geocodedLocation) {
+        setLocationQuery(data.geocodedLocation);
+      }
+      if (data.geocodedPath) {
+        setPathQuery(data.geocodedPath);
+      }
       setUiStatus("idle");
     } catch (err) {
       clearInterval(seqInterval);
@@ -95,19 +105,18 @@ export default function Home() {
       setUiStatus("error", "Search failed");
       setTimeout(() => setUiStatus("idle"), 3000);
     }
-  }, [persona, searchMode, locationQuery, pathQuery, setRecommendations, setPersonaScores, setUiStatus]);
+  }, [persona, searchMode, locationQuery, pathQuery, setRecommendations, setPersonaScores, setUiStatus, setLocationQuery, setPathQuery]);
 
   React.useEffect(() => {
-    if (searchMode === "location" && locationQuery) {
-      triggerSearch();
+    if (isOnboarded) {
+      if (searchMode === "location" && locationQuery?.formattedAddress) {
+        triggerSearch();
+      } else if (searchMode === "path" && pathQuery?.origin?.formattedAddress && pathQuery?.destination?.formattedAddress) {
+        triggerSearch();
+      }
     }
-  }, [locationQuery, searchMode, triggerSearch]);
-
-  React.useEffect(() => {
-    if (searchMode === "path" && pathQuery) {
-      triggerSearch();
-    }
-  }, [pathQuery, searchMode, triggerSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerSearchFlag, isOnboarded]);
 
   return (
     <APIProvider apiKey={MAPS_API_KEY} libraries={["places"]}>
@@ -172,6 +181,20 @@ export default function Home() {
                   <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Destination Inputs</span>
                   {searchMode === "location" ? <LocationSearchBox /> : <PathSearchBox />}
                 </div>
+
+                {/* Scout Action Button */}
+                <button
+                  type="button"
+                  onClick={dispatchSearch}
+                  disabled={
+                    uiStatus === "loading" ||
+                    (searchMode === "location" && !locationQuery?.formattedAddress) ||
+                    (searchMode === "path" && (!pathQuery?.origin?.formattedAddress || !pathQuery?.destination?.formattedAddress))
+                  }
+                  className="w-full mt-1 py-3.5 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-900 disabled:text-zinc-600 disabled:border disabled:border-zinc-850 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all shadow-md active:scale-[0.98] hover:scale-[1.01]"
+                >
+                  {uiStatus === "loading" ? "Scouting..." : "🔍 Scout Experiences"}
+                </button>
               </div>
 
               {/* Chat Panel */}

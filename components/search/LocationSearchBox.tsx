@@ -9,7 +9,7 @@ import { useAppStore } from "../../lib/store/useAppStore";
 export default function LocationSearchBox() {
   const inputRef = useRef<HTMLInputElement>(null);
   const placesLib = useMapsLibrary("places");
-  const { locationQuery, setLocationQuery } = useAppStore();
+  const { locationQuery, setLocationQuery, dispatchSearch } = useAppStore();
   const [inputValue, setInputValue] = useState(locationQuery?.formattedAddress || "");
 
   // Update input text if locationQuery changes globally
@@ -33,6 +33,7 @@ export default function LocationSearchBox() {
         
         setLocationQuery({ lat, lng, formattedAddress });
         setInputValue(formattedAddress);
+        dispatchSearch();
       }
     });
 
@@ -40,7 +41,7 @@ export default function LocationSearchBox() {
     return () => {
       google.maps.event.clearInstanceListeners(autocomplete);
     };
-  }, [placesLib, setLocationQuery]);
+  }, [placesLib, setLocationQuery, dispatchSearch]);
 
   const handleClear = () => {
     setLocationQuery(null);
@@ -57,7 +58,18 @@ export default function LocationSearchBox() {
         type="text"
         placeholder="Enter a city or location to scout..."
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value;
+          setInputValue(val);
+          setLocationQuery(val ? { lat: 0, lng: 0, formattedAddress: val } : null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && inputValue.trim()) {
+            e.preventDefault();
+            setLocationQuery({ lat: 0, lng: 0, formattedAddress: inputValue.trim() });
+            dispatchSearch();
+          }
+        }}
         className="w-full pl-10 pr-10 py-3.5 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all shadow-inner"
       />
       {inputValue && (
