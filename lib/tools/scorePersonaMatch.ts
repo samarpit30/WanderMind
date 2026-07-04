@@ -25,7 +25,7 @@ Output a percentage match score (integer from 0 to 100) and a concise, user-frie
 
   try {
     const response = await gemini.models.generateContent({
-      model: "gemini-3.1-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are a professional travel analyst scoring places against user personas. Be realistic and objective.",

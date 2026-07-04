@@ -140,7 +140,7 @@ export default function Home() {
         </div>
 
         {/* Left Side Panel: Search Controls, Chat, and Recommendations */}
-        <aside className={`w-full lg:w-[420px] lg:h-screen shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-900 bg-zinc-950/80 backdrop-blur flex flex-col overflow-y-auto ${
+        <aside className={`w-full h-[calc(100vh-48px)] lg:w-[420px] lg:h-screen shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-900 bg-zinc-950/80 backdrop-blur flex flex-col overflow-y-auto ${
           activeMobileTab === "list" ? "flex" : "hidden lg:flex"
         }`}>
           {/* Header */}
@@ -258,7 +258,7 @@ export default function Home() {
         </aside>
 
         {/* Right Side Panel: Interactive Map */}
-        <main className={`flex-1 flex flex-col lg:h-screen bg-zinc-900 relative ${
+        <main className={`w-full h-[calc(100vh-48px)] lg:h-screen bg-zinc-900 relative flex flex-col ${
           activeMobileTab === "map" ? "flex" : "hidden lg:flex"
         }`}>
           {!MAPS_API_KEY && (
@@ -266,7 +266,7 @@ export default function Home() {
               ⚠️ Google Maps API Key is missing. Please add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your <code>.env.local</code> file to load the map interface.
             </div>
           )}
-          <div className="flex-1 h-[calc(100vh-48px)] lg:h-full p-4 lg:p-6 bg-zinc-950">
+          <div className="w-full h-full p-4 lg:p-6 bg-zinc-950">
             <MapCanvas />
           </div>
         </main>

@@ -141,7 +141,7 @@ export async function runOrchestrator(request: AgentRequest): Promise<AgentRespo
   try {
     while (loop) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.1-flash",
+        model: "gemini-2.5-flash",
         contents,
         config: {
           systemInstruction: orchestratorSystemPrompt,
