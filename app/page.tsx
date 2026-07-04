@@ -27,6 +27,8 @@ const PERSONA_LABELS: Record<string, string> = {
 };
 
 export default function Home() {
+  const [activeMobileTab, setActiveMobileTab] = React.useState<"list" | "map">("list");
+
   const {
     isOnboarded,
     setIsOnboarded,
@@ -37,6 +39,9 @@ export default function Home() {
     setRecommendations,
     setPersonaScores,
     setUiStatus,
+    activePlan,
+    removeFromPlan,
+    setLocationQuery,
   } = useAppStore();
 
   const handleEditPersona = () => {
@@ -112,8 +117,32 @@ export default function Home() {
         {/* Onboarding View */}
         {!isOnboarded && <PersonaPicker />}
 
+        {/* Mobile Tab Toggle Bar */}
+        <div className="lg:hidden flex border-b border-zinc-900 bg-zinc-950/95 sticky top-0 z-20 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab("list")}
+            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider text-center transition-all ${
+              activeMobileTab === "list" ? "text-violet-400 border-b-2 border-violet-500 bg-zinc-900/20" : "text-zinc-500"
+            }`}
+          >
+            📋 Discover & Plan
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab("map")}
+            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider text-center transition-all ${
+              activeMobileTab === "map" ? "text-violet-400 border-b-2 border-violet-500 bg-zinc-900/20" : "text-zinc-500"
+            }`}
+          >
+            🗺️ Map View
+          </button>
+        </div>
+
         {/* Left Side Panel: Search Controls, Chat, and Recommendations */}
-        <aside className="w-full lg:w-[420px] lg:h-screen shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-900 bg-zinc-950/80 backdrop-blur flex flex-col overflow-y-auto">
+        <aside className={`w-full lg:w-[420px] lg:h-screen shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-900 bg-zinc-950/80 backdrop-blur flex flex-col overflow-y-auto ${
+          activeMobileTab === "list" ? "flex" : "hidden lg:flex"
+        }`}>
           {/* Header */}
           <header className="p-6 border-b border-zinc-900 flex justify-between items-center bg-zinc-950/90 sticky top-0 z-10">
             <div>
@@ -177,18 +206,67 @@ export default function Home() {
           {/* Placeholders for recommendations and chat in sidebar */}
           <div className="flex-1 flex flex-col p-6 gap-6">
             <RecommendationsPanel />
+
+            {/* Active Plan List Section */}
+            {activePlan.length > 0 && (
+              <div className="flex flex-col gap-3 border-t border-zinc-900 pt-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">My Travel Plan</h3>
+                  <span className="text-[10px] text-zinc-500 font-semibold">{activePlan.length} stops</span>
+                </div>
+                
+                <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                  {activePlan.map((place, idx) => (
+                    <div
+                      key={place.placeId}
+                      className="flex items-center justify-between p-3 border border-zinc-900 bg-zinc-950/40 rounded-xl hover:border-zinc-800 transition-all group"
+                    >
+                      <div
+                        onClick={() => {
+                          setLocationQuery({ lat: place.lat, lng: place.lng, formattedAddress: place.name });
+                          // Automatically toggle to map tab on phone view
+                          setActiveMobileTab("map");
+                        }}
+                        className="flex items-center gap-2 cursor-pointer flex-1"
+                      >
+                        <span className="text-xs font-bold text-violet-400 w-5 h-5 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-zinc-200 line-clamp-1 group-hover:text-violet-400 transition-all">
+                            {place.name}
+                          </span>
+                          <span className="text-[9px] text-zinc-500">{place.category}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeFromPlan(place.placeId)}
+                        className="text-[10px] font-bold text-zinc-550 hover:text-rose-400 px-2 py-1 transition-all"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <ChatPanel />
           </div>
         </aside>
 
         {/* Right Side Panel: Interactive Map */}
-        <main className="flex-1 flex flex-col lg:h-screen bg-zinc-900 relative">
+        <main className={`flex-1 flex flex-col lg:h-screen bg-zinc-900 relative ${
+          activeMobileTab === "map" ? "flex" : "hidden lg:flex"
+        }`}>
           {!MAPS_API_KEY && (
             <div className="absolute top-4 left-4 right-4 z-10 bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-2xl text-xs font-medium shadow-lg backdrop-blur">
               ⚠️ Google Maps API Key is missing. Please add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your <code>.env.local</code> file to load the map interface.
             </div>
           )}
-          <div className="flex-1 h-[60vh] lg:h-full p-4 lg:p-6 bg-zinc-950">
+          <div className="flex-1 h-[calc(100vh-48px)] lg:h-full p-4 lg:p-6 bg-zinc-950">
             <MapCanvas />
           </div>
         </main>

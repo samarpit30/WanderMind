@@ -5,6 +5,16 @@ import { useAppStore } from "../../lib/store/useAppStore";
 import { ChatMessage } from "../../lib/types";
 import AgentsAtWorkStrip from "./AgentsAtWorkStrip";
 
+function cleanMarkdown(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/###?\s+/g, "");
+}
+
 export default function ChatPanel() {
   const {
     chatHistory,
@@ -168,7 +178,7 @@ export default function ChatPanel() {
                       : "bg-zinc-900 text-zinc-200 border border-zinc-800 rounded-tl-none"
                   }`}
                 >
-                  {msg.text}
+                  {cleanMarkdown(msg.text)}
                 </div>
                 <span className="text-[9px] text-zinc-600 mt-1 px-1">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
