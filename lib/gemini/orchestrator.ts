@@ -184,7 +184,8 @@ export async function runOrchestrator(request: AgentRequest): Promise<AgentRespo
             if (call.name === "search_places" && Array.isArray(result)) {
               recommendations = [...recommendations, ...result];
             } else if (call.name === "geocode_location" && result && typeof result === "object") {
-              const queryStr = (call.args.query || "").toLowerCase();
+              const callArgs = (call.args || {}) as Record<string, any>;
+              const queryStr = String(callArgs.query || "").toLowerCase();
               const originStr = (context.pathQuery?.origin?.formattedAddress || "").toLowerCase();
               const destStr = (context.pathQuery?.destination?.formattedAddress || "").toLowerCase();
               
