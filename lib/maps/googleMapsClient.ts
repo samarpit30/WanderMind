@@ -1,5 +1,39 @@
 import { Place, Itinerary, TrafficAlert } from "../types";
 
+interface GooglePlacePhoto {
+  name: string;
+}
+
+interface GooglePlaceReview {
+  text?: {
+    text?: string;
+  };
+}
+
+interface GooglePlaceResponse {
+  id: string;
+  displayName?: {
+    text?: string;
+  };
+  primaryType?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  rating?: number;
+  userRatingCount?: number;
+  priceLevel?: string;
+  currentOpeningHours?: {
+    weekdayDescriptions?: string[];
+  };
+  photos?: GooglePlacePhoto[];
+  reviews?: GooglePlaceReview[];
+}
+
+const getApiKey = () => {
+  return process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+};
+
 export interface GeocodeResult {
   lat: number;
   lng: number;
@@ -7,11 +41,28 @@ export interface GeocodeResult {
 }
 
 export async function geocodeLocation(query: string): Promise<GeocodeResult> {
-  console.log("Mock geocodeLocation called for query:", query);
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Google Maps API Key is not configured.");
+  }
+
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Geocoding failed with status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.status !== "OK" || !data.results || data.results.length === 0) {
+    throw new Error(`Geocoding query '${query}' returned status: ${data.status}`);
+  }
+
+  const result = data.results[0];
   return {
-    lat: 22.7196,
-    lng: 75.8577,
-    formattedAddress: `${query}, Indore, Madhya Pradesh, India`,
+    lat: result.geometry.location.lat,
+    lng: result.geometry.location.lng,
+    formattedAddress: result.formatted_address,
   };
 }
 
@@ -25,45 +76,163 @@ export interface SearchPlacesParams {
 }
 
 export async function searchPlaces(params: SearchPlacesParams): Promise<Place[]> {
-  console.log("Mock searchPlaces called with params:", params);
-  return [
-    {
-      placeId: "place-1",
-      name: "Rajwada Palace",
-      category: "Heritage",
-      lat: 22.7196,
-      lng: 75.8577,
-      rating: 4.5,
-      reviewCount: 1200,
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Google Maps API Key is not configured.");
+  }
+
+  // Places API (New) Text Search
+  const url = `https://places.googleapis.com/v1/places:searchText`;
+  const queryText = params.keyword || params.category || "scenic tourist attraction";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.primaryType,places.rating,places.userRatingCount,places.location,places.currentOpeningHours,places.priceLevel,places.photos",
     },
-    {
-      placeId: "place-2",
-      name: "Sarafa Bazaar",
-      category: "Foodie",
-      lat: 22.7204,
-      lng: 75.8601,
-      rating: 4.7,
-      reviewCount: 3400,
-    },
-  ];
+    body: JSON.stringify({
+      textQuery: queryText,
+      maxResultCount: 12,
+      locationBias: {
+        circle: {
+          center: {
+            latitude: params.lat,
+            longitude: params.lng,
+          },
+          radius: params.radiusM,
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("searchPlaces API error:", errorText);
+    throw new Error(`Places Search failed with status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const places = data.places || [];
+
+  return places.map((p: GooglePlaceResponse) => {
+    // Determine opening hours today
+    let openingHoursToday: string | undefined;
+    if (p.currentOpeningHours?.weekdayDescriptions) {
+      const dayIndex = new Date().getDay(); // 0 is Sunday, 1 is Monday
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const todayStr = days[dayIndex];
+      const todayDesc = p.currentOpeningHours.weekdayDescriptions.find((d: string) => d.startsWith(todayStr));
+      openingHoursToday = todayDesc || p.currentOpeningHours.weekdayDescriptions[0];
+    }
+
+    // Resolve photo URL (Places API New naming format)
+    let photoUrl: string | undefined;
+    if (p.photos && p.photos.length > 0) {
+      const photoName = p.photos[0].name; // e.g. places/ChIJ.../photos/AU37...
+      photoUrl = `https://places.googleapis.com/v1/${photoName}/media?key=${apiKey}&maxHeightPx=300`;
+    }
+
+    // Map price levels
+    let priceLevel: number | undefined;
+    if (p.priceLevel) {
+      const priceMap: Record<string, number> = {
+        PRICE_LEVEL_FREE: 0,
+        PRICE_LEVEL_INEXPENSIVE: 1,
+        PRICE_LEVEL_MODERATE: 2,
+        PRICE_LEVEL_EXPENSIVE: 3,
+        PRICE_LEVEL_VERY_EXPENSIVE: 4,
+      };
+      priceLevel = priceMap[p.priceLevel];
+    }
+
+    return {
+      placeId: p.id,
+      name: p.displayName?.text || "Unknown Place",
+      category: p.primaryType ? p.primaryType.replace(/_/g, " ") : "Scenic",
+      lat: p.location?.latitude || params.lat,
+      lng: p.location?.longitude || params.lng,
+      rating: p.rating,
+      reviewCount: p.userRatingCount,
+      photoUrl,
+      priceLevel,
+      openingHoursToday,
+    };
+  });
 }
 
 export async function getPlaceDetails(placeId: string): Promise<Place> {
-  console.log("Mock getPlaceDetails called for placeId:", placeId);
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Google Maps API Key is not configured.");
+  }
+
+  // Places API (New) Place Details
+  const url = `https://places.googleapis.com/v1/places/${placeId}`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "id,displayName,primaryType,rating,userRatingCount,priceLevel,currentOpeningHours,photos,reviews,location",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("getPlaceDetails API error:", errorText);
+    throw new Error(`Place Details failed with status: ${response.status}`);
+  }
+
+  const p: GooglePlaceResponse = await response.json();
+
+  let openingHoursToday: string | undefined;
+  if (p.currentOpeningHours?.weekdayDescriptions) {
+    const dayIndex = new Date().getDay();
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayStr = days[dayIndex];
+    const todayDesc = p.currentOpeningHours.weekdayDescriptions.find((d: string) => d.startsWith(todayStr));
+    openingHoursToday = todayDesc || p.currentOpeningHours.weekdayDescriptions[0];
+  }
+
+  let photoUrl: string | undefined;
+  if (p.photos && p.photos.length > 0) {
+    const photoName = p.photos[0].name;
+    photoUrl = `https://places.googleapis.com/v1/${photoName}/media?key=${apiKey}&maxHeightPx=400`;
+  }
+
+  let priceLevel: number | undefined;
+  if (p.priceLevel) {
+    const priceMap: Record<string, number> = {
+      PRICE_LEVEL_FREE: 0,
+      PRICE_LEVEL_INEXPENSIVE: 1,
+      PRICE_LEVEL_MODERATE: 2,
+      PRICE_LEVEL_EXPENSIVE: 3,
+      PRICE_LEVEL_VERY_EXPENSIVE: 4,
+    };
+    priceLevel = priceMap[p.priceLevel];
+  }
+
+  // Map review summaries (max 3 reviews)
+  const topReviews = (p.reviews || []).slice(0, 3).map((r: GooglePlaceReview) => {
+    const text = r.text?.text || "";
+    // Truncate length to avoid flooding layout
+    return text.length > 160 ? `${text.substring(0, 160)}...` : text;
+  });
+
   return {
-    placeId,
-    name: placeId === "place-1" ? "Rajwada Palace" : "Sarafa Bazaar",
-    category: placeId === "place-1" ? "Heritage" : "Foodie",
-    lat: placeId === "place-1" ? 22.7196 : 22.7204,
-    lng: placeId === "place-1" ? 75.8577 : 75.8601,
-    rating: 4.6,
-    reviewCount: 2000,
-    priceLevel: 2,
-    openingHoursToday: "9:00 AM - 11:00 PM",
-    topReviews: [
-      "Beautiful historical site in the center of the city.",
-      "An absolute foodie paradise at night! Must visit.",
-    ],
+    placeId: p.id,
+    name: p.displayName?.text || "Unknown Place",
+    category: p.primaryType ? p.primaryType.replace(/_/g, " ") : "Scenic",
+    lat: p.location?.latitude || 0,
+    lng: p.location?.longitude || 0,
+    rating: p.rating,
+    reviewCount: p.userRatingCount,
+    photoUrl,
+    priceLevel,
+    openingHoursToday,
+    topReviews,
   };
 }
 
@@ -75,43 +244,16 @@ export interface DirectionsParams {
 }
 
 export async function getDirectionsOptimized(params: DirectionsParams): Promise<Itinerary> {
-  console.log("Mock getDirectionsOptimized called with params:", params);
+  console.log("Mock getDirectionsOptimized called in client:", params);
   return {
-    stops: [
-      {
-        place: {
-          placeId: "place-1",
-          name: "Rajwada Palace",
-          category: "Heritage",
-          lat: 22.7196,
-          lng: 75.8577,
-        },
-        order: 1,
-        arrivalEstimate: "10:00",
-        durationHereMinutes: 60,
-        travelToNextMinutes: 10,
-        travelToNextMode: params.mode,
-      },
-      {
-        place: {
-          placeId: "place-2",
-          name: "Sarafa Bazaar",
-          category: "Foodie",
-          lat: 22.7204,
-          lng: 75.8601,
-        },
-        order: 2,
-        arrivalEstimate: "11:10",
-        durationHereMinutes: 90,
-      },
-    ],
-    totalDurationMinutes: 160,
-    totalDistanceKm: 1.5,
-    polyline: "mock-polyline",
+    stops: [],
+    totalDurationMinutes: 0,
+    totalDistanceKm: 0,
+    polyline: "",
   };
 }
 
 export async function getTrafficStatus(itinerary: Itinerary): Promise<TrafficAlert[]> {
-  console.log("Mock getTrafficStatus called for itinerary stops:", itinerary.stops.length);
+  console.log("Mock getTrafficStatus called in client:", itinerary.stops.length);
   return [];
 }

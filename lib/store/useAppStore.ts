@@ -49,6 +49,7 @@ export interface AppState {
   pushChatMessage: (message: ChatMessage) => void;
   setUiStatus: (status: "idle" | "loading" | "error", message?: string) => void;
   setIsOnboarded: (val: boolean) => void;
+  setPersonaScores: (scores: PersonaScore[]) => void;
 }
 
 const defaultPersona: UserPersona = {
@@ -78,6 +79,13 @@ export const useAppStore = create<AppState>()(
       setLocationQuery: (locationQuery) => set({ locationQuery }),
       setPathQuery: (pathQuery) => set({ pathQuery }),
       setRecommendations: (recommendations) => set({ recommendations }),
+      setPersonaScores: (scores) => {
+        const scoreRecord: Record<string, PersonaScore> = {};
+        scores.forEach((s) => {
+          scoreRecord[s.placeId] = s;
+        });
+        set({ personaScores: scoreRecord });
+      },
       addToPlan: (place) =>
         set((state) => ({
           activePlan: state.activePlan.some((p) => p.placeId === place.placeId)

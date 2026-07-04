@@ -27,11 +27,84 @@ const PERSONA_LABELS: Record<string, string> = {
 };
 
 export default function Home() {
-  const { isOnboarded, setIsOnboarded, searchMode, persona } = useAppStore();
+  const {
+    isOnboarded,
+    setIsOnboarded,
+    searchMode,
+    persona,
+    locationQuery,
+    pathQuery,
+    setRecommendations,
+    setPersonaScores,
+    setUiStatus,
+  } = useAppStore();
 
   const handleEditPersona = () => {
     setIsOnboarded(false);
   };
+
+  const triggerSearch = React.useCallback(async () => {
+    setUiStatus("loading", "Understanding your request...");
+    const statusSequence = [
+      "Analyzing user persona...",
+      "Scouting nearby Google Places...",
+      "Scoring persona matches...",
+      "Organizing recommendations...",
+    ];
+    let seqIndex = 0;
+    const seqInterval = setInterval(() => {
+      if (seqIndex < statusSequence.length) {
+        setUiStatus("loading", statusSequence[seqIndex]);
+        seqIndex++;
+      }
+    }, 1200);
+
+    try {
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent: "search",
+          context: {
+            persona,
+            searchMode,
+            locationQuery,
+            pathQuery,
+          },
+        }),
+      });
+
+      clearInterval(seqInterval);
+
+      if (!response.ok) throw new Error("Search failed");
+      const data = await response.json();
+
+      if (data.recommendations) {
+        setRecommendations(data.recommendations);
+      }
+      if (data.personaScores) {
+        setPersonaScores(data.personaScores);
+      }
+      setUiStatus("idle");
+    } catch (err) {
+      clearInterval(seqInterval);
+      console.error(err);
+      setUiStatus("error", "Search failed");
+      setTimeout(() => setUiStatus("idle"), 3000);
+    }
+  }, [persona, searchMode, locationQuery, pathQuery, setRecommendations, setPersonaScores, setUiStatus]);
+
+  React.useEffect(() => {
+    if (searchMode === "location" && locationQuery) {
+      triggerSearch();
+    }
+  }, [locationQuery, searchMode, triggerSearch]);
+
+  React.useEffect(() => {
+    if (searchMode === "path" && pathQuery) {
+      triggerSearch();
+    }
+  }, [pathQuery, searchMode, triggerSearch]);
 
   return (
     <APIProvider apiKey={MAPS_API_KEY} libraries={["places"]}>
