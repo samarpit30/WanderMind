@@ -7,7 +7,7 @@ export async function scorePersonaMatch(
   personaTags: string[],
   freeText?: string
 ): Promise<PersonaScore> {
-  console.log("scorePersonaMatch called for:", placeName);
+  console.log("scorePersonaMatch called for:", placeName, "with free text:", freeText);
   return {
     placeId,
     score: 85,

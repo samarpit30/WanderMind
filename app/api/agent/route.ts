@@ -44,8 +44,9 @@ export async function POST(request: Request) {
       ],
       toolTrace: ["geocode_location", "search_places", "score_persona_match"],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in POST /api/agent:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

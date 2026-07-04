@@ -1,14 +1,17 @@
-import { ChatMessage, Place, PersonaScore, Itinerary } from "../types";
+import { ChatMessage, Place, PersonaScore, Itinerary, UserPersona, SearchMode } from "../types";
 
 export interface AgentRequest {
   message?: string;
   intent?: "search" | "build_itinerary" | "rescore" | "get_story";
   context: {
-    persona: any;
-    searchMode: any;
-    locationQuery?: any;
-    pathQuery?: any;
-    activePlan?: any;
+    persona: UserPersona;
+    searchMode: SearchMode;
+    locationQuery?: { lat: number; lng: number; formattedAddress: string } | null;
+    pathQuery?: {
+      origin: { lat: number; lng: number; formattedAddress: string };
+      destination: { lat: number; lng: number; formattedAddress: string };
+    } | null;
+    activePlan?: Place[];
     chatHistory?: ChatMessage[];
   };
 }

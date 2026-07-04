@@ -9,8 +9,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       alerts: [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in POST /api/traffic-check:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
